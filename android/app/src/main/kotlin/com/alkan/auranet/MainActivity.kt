@@ -1,4 +1,4 @@
-package com.example.auranet
+package com.alkan.auranet
 
 import io.flutter.embedding.android.FlutterActivity
 

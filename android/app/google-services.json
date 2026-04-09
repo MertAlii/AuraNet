@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1013437828438",
+    "project_id": "auranet-6f29d",
+    "storage_bucket": "auranet-6f29d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1013437828438:android:1281fe7c22be68f5fddaf7",
+        "android_client_info": {
+          "package_name": "com.alkan.auranet"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBfKtx9iRyffOEV6anQN-mJS7zTWPlP_D0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
