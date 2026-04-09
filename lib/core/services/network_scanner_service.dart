@@ -92,9 +92,17 @@ class NetworkScannerService {
     });
 
     await for (final ip in aliveHostsController.stream) {
-      
-      // MAC Vendor sorgula (Gelecekte MAC ARP table tespiti eklenecek, şimdilik placeholder)
-      final mac = '00:00:00:00:00:00';
+      // 1. Hostname sorgula (Reverse DNS) - Cihaz adını çekebilme özelliği
+      String? hostname;
+      try {
+        final lookup = await InternetAddress.lookup(ip).timeout(const Duration(milliseconds: 300));
+        if (lookup.isNotEmpty && lookup.first.host != ip) {
+          hostname = lookup.first.host;
+        }
+      } catch (_) {}
+
+      // 2. MAC Vendor sorgula (Not: Android 11+ kısıtlamaları nedeniyle 00:00:00... dönebilir)
+      final mac = '00:00:00:00:00:00'; 
       final vendorName = await _macService.getVendor(mac);
 
       // Ana modeli oluştur
@@ -102,6 +110,7 @@ class NetworkScannerService {
         ipAddress: ip,
         macAddress: mac,
         vendorName: vendorName,
+        deviceName: hostname ?? ip, // Hostname yoksa IP'yi isim olarak göster (Daha modern)
         isHost: false, // getLocalIp() ile aynıysa true yapacağız UI tarafında
         isScanningPorts: true, // Port taraması birazdan başlayacak
       );

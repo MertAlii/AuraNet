@@ -13,13 +13,19 @@ class WiFiAnalyzerScreen extends ConsumerStatefulWidget {
   ConsumerState<WiFiAnalyzerScreen> createState() => _WiFiAnalyzerScreenState();
 }
 
-class _WiFiAnalyzerScreenState extends ConsumerState<WiFiAnalyzerScreen> with SingleTickerProviderStateMixin {
+class _WiFiAnalyzerScreenState extends ConsumerState<WiFiAnalyzerScreen> with TickerProviderStateMixin {
   late TabController _tabController;
+  late AnimationController _radarController;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _radarController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat();
+    
     // Taramayı başlat
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(wifiAnalyzerProvider.notifier).startContinuousScan();
@@ -29,6 +35,7 @@ class _WiFiAnalyzerScreenState extends ConsumerState<WiFiAnalyzerScreen> with Si
   @override
   void dispose() {
     _tabController.dispose();
+    _radarController.dispose();
     super.dispose();
   }
 
@@ -39,7 +46,17 @@ class _WiFiAnalyzerScreenState extends ConsumerState<WiFiAnalyzerScreen> with Si
     return Scaffold(
       backgroundColor: AppColors.backgroundDeep,
       appBar: AppBar(
-        title: const Text('Wi-Fi Analizörü'),
+        title: Row(
+          children: [
+            if (analyzerState.isScanning)
+              RotationTransition(
+                turns: _radarController,
+                child: const Icon(Icons.radar_rounded, color: AppColors.primaryBlueLight, size: 20),
+              ),
+            if (analyzerState.isScanning) const SizedBox(width: 8),
+            const Text('Wi-Fi Analizörü'),
+          ],
+        ),
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -61,6 +78,82 @@ class _WiFiAnalyzerScreenState extends ConsumerState<WiFiAnalyzerScreen> with Si
           _buildChannelGraphTab(analyzerState),
           _buildTimeGraphTab(analyzerState),
           _buildRatingTab(analyzerState),
+        ],
+      ),
+    );
+  }
+
+  void _showNetworkDetails(WiFiNetworkModel network) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.backgroundCard,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(color: AppColors.textHint, borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Icon(network.isSecure ? Icons.lock_rounded : Icons.lock_open_rounded, color: AppColors.primaryBlue),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    network.ssid.isEmpty ? 'Gizli Ağ' : network.ssid,
+                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            _detailRow(Icons.fingerprint_rounded, 'BSSID (MAC)', network.bssid),
+            _detailRow(Icons.wifi_tethering_rounded, 'Frekans', '${network.frequency} MHz'),
+            _detailRow(Icons.speed_rounded, 'Sinyal Gücü', '${network.level} dBm (%${network.signalLevel})'),
+            _detailRow(Icons.straighten_rounded, 'Mesafe Tahmini', '${network.distance.toStringAsFixed(1)} metre'),
+            _detailRow(Icons.security_rounded, 'Güvenlik', network.capabilities),
+            _detailRow(Icons.router_rounded, 'Kanal', 'Kanal ${network.channel} (${network.band})'),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Kapat'),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _detailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        children: [
+          Icon(icon, color: AppColors.textSecondary, size: 20),
+          const SizedBox(width: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(color: AppColors.textHint, fontSize: 12)),
+              Text(value, style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500)),
+            ],
+          ),
         ],
       ),
     );
@@ -89,47 +182,55 @@ class _WiFiAnalyzerScreenState extends ConsumerState<WiFiAnalyzerScreen> with Si
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.backgroundBorder.withValues(alpha: 0.3)),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: Container(
-          width: 48, height: 48,
-          decoration: BoxDecoration(
-            color: network.isSecure ? AppColors.primaryBlue.withValues(alpha: 0.1) : AppColors.danger.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
+      child: InkWell(
+        onTap: () => _showNetworkDetails(network),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 48, height: 48,
+                decoration: BoxDecoration(
+                  color: network.isSecure ? AppColors.primaryBlue.withValues(alpha: 0.1) : AppColors.danger.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  network.isSecure ? Icons.lock_outline_rounded : Icons.lock_open_rounded,
+                  color: network.isSecure ? AppColors.primaryBlue : AppColors.danger,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      network.ssid.isEmpty ? 'Gizli Ağ' : network.ssid,
+                      style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text('${network.band} · Kanal ${network.channel} · ${network.level} dBm',
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                  ],
+                ),
+              ),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    _getSignalIcon(network.level),
+                    color: _getSignalColor(network.level),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${network.signalLevel}%',
+                    style: TextStyle(color: _getSignalColor(network.level), fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ],
           ),
-          child: Icon(
-            network.isSecure ? Icons.lock_outline_rounded : Icons.lock_open_rounded,
-            color: network.isSecure ? AppColors.primaryBlue : AppColors.danger,
-          ),
-        ),
-        title: Text(
-          network.ssid.isEmpty ? 'Gizli Ağ' : network.ssid,
-          style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text('${network.band} · Kanal ${network.channel} · ${network.level} dBm',
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-            const SizedBox(height: 2),
-            Text('Mesafe: ~${network.distance.toStringAsFixed(1)}m',
-                style: TextStyle(color: AppColors.textPrimary.withValues(alpha: 0.6), fontSize: 12)),
-          ],
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              _getSignalIcon(network.level),
-              color: _getSignalColor(network.level),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${network.signalLevel}%',
-              style: TextStyle(color: _getSignalColor(network.level), fontSize: 11, fontWeight: FontWeight.bold),
-            ),
-          ],
         ),
       ),
     );

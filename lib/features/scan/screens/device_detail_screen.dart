@@ -1,16 +1,58 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/port_risk_database.dart';
+import '../../../core/services/hive_service.dart';
 import '../../scan/models/device_model.dart';
 import 'package:go_router/go_router.dart';
 
-class DeviceDetailScreen extends StatelessWidget {
+class DeviceDetailScreen extends ConsumerStatefulWidget {
   final DeviceModel device;
   const DeviceDetailScreen({super.key, required this.device});
 
   @override
+  ConsumerState<DeviceDetailScreen> createState() => _DeviceDetailScreenState();
+}
+
+class _DeviceDetailScreenState extends ConsumerState<DeviceDetailScreen> {
+  late TextEditingController _nameController;
+  late bool _isFavorite;
+  bool _isEditing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.device.deviceName);
+    _isFavorite = widget.device.isFavorite;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveChanges() async {
+    final Map<String, dynamic> label = {
+      'customName': _nameController.text,
+      'isFavorite': _isFavorite,
+      'customEmoji': widget.device.customEmoji,
+      'lastSeen': DateTime.now().toIso8601String(),
+    };
+    
+    await HiveService.saveDeviceLabel(widget.device.macAddress, label);
+    setState(() => _isEditing = false);
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cihaz bilgileri güncellendi. Bir sonraki taramada görünecektir.')),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    bool isRisky = device.openPorts.isNotEmpty;
+    bool isRisky = widget.device.openPorts.isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundDeep,
@@ -20,6 +62,16 @@ class DeviceDetailScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(_isFavorite ? Icons.star_rounded : Icons.star_outline_rounded, 
+                      color: _isFavorite ? AppColors.warning : AppColors.textHint),
+            onPressed: () {
+              setState(() => _isFavorite = !_isFavorite);
+              _saveChanges();
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -37,15 +89,42 @@ class DeviceDetailScreen extends StatelessWidget {
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      device.isHost ? Icons.phone_android_rounded : Icons.desktop_windows_rounded, 
+                      widget.device.isHost ? Icons.phone_android_rounded : Icons.desktop_windows_rounded, 
                       size: 40,
                       color: isRisky ? AppColors.danger : AppColors.primaryBlue,
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Text(device.deviceName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                  if (!_isEditing)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(widget.device.deviceName, 
+                             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                        IconButton(
+                          icon: const Icon(Icons.edit_rounded, size: 18, color: AppColors.primaryBlue),
+                          onPressed: () => setState(() => _isEditing = true),
+                        ),
+                      ],
+                    )
+                  else
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 40),
+                      child: TextField(
+                        controller: _nameController,
+                        autofocus: true,
+                        style: const TextStyle(color: AppColors.textPrimary),
+                        decoration: InputDecoration(
+                          hintText: 'Cihaz Adı',
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.check_circle_rounded, color: AppColors.safe),
+                            onPressed: _saveChanges,
+                          ),
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 8),
-                  Text(device.vendorName, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                  Text(widget.device.vendorName, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
                 ],
               ),
             ),
@@ -54,8 +133,8 @@ class DeviceDetailScreen extends StatelessWidget {
             // Bilgiler
             const Text('Ağ Bilgileri', style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
-            _buildInfoRow('IP Adresi', device.ipAddress),
-            _buildInfoRow('MAC Adresi', device.macAddress),
+            _buildInfoRow('IP Adresi', widget.device.ipAddress),
+            _buildInfoRow('MAC Adresi', widget.device.macAddress),
             
             const SizedBox(height: 32),
             
@@ -64,11 +143,11 @@ class DeviceDetailScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Açık Portlar', style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
-                Text('${device.openPorts.length}', style: TextStyle(color: isRisky ? AppColors.danger : AppColors.textSecondary, fontWeight: FontWeight.bold)),
+                Text('${widget.device.openPorts.length}', style: TextStyle(color: isRisky ? AppColors.danger : AppColors.textSecondary, fontWeight: FontWeight.bold)),
               ],
             ),
             const SizedBox(height: 12),
-            if (device.openPorts.isEmpty)
+            if (widget.device.openPorts.isEmpty)
                Container(
                  padding: const EdgeInsets.all(16),
                  decoration: BoxDecoration(
@@ -85,7 +164,7 @@ class DeviceDetailScreen extends StatelessWidget {
                  ),
                )
             else
-               ...device.openPorts.map((port) => _buildPortTile(context, port)),
+               ...widget.device.openPorts.map((port) => _buildPortTile(context, port)),
           ],
         ),
       ),

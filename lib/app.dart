@@ -16,6 +16,7 @@ import 'features/speedtest/screens/speedtest_screen.dart';
 import 'features/analyzer/screens/wifi_analyzer_screen.dart';
 import 'features/security/screens/advanced_security_screen.dart';
 import 'features/premium/screens/premium_screen.dart';
+import 'features/history/screens/history_screen.dart';
 import 'features/scan/models/device_model.dart';
 import 'core/services/network_scanner_service.dart';
 
@@ -63,6 +64,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/premium',
             builder: (context, state) => const PremiumScreen(),
+          ),
+          GoRoute(
+            path: '/history',
+            builder: (context, state) => const HistoryScreen(),
           ),
         ],
       ),

@@ -48,15 +48,27 @@ class AuthNotifier extends StateNotifier<AuthState> {
   void _init() {
     _authService.authStateChanges.listen((user) async {
       if (user != null) {
-        // Firestore'dan premium durumunu çek
-        final profile = await _firestoreService.getUserProfile(user.uid);
-        final isPremium = profile?['isPremium'] ?? false;
-        
-        state = AuthState(
-          status: AuthStatus.authenticated, 
-          user: user,
-          isPremium: isPremium,
-        );
+        try {
+          // Firestore'dan premium durumunu çek (Maks 5 sn bekle, yoksa devam et)
+          final profile = await _firestoreService.getUserProfile(user.uid).timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => null,
+          );
+          final isPremium = profile?['isPremium'] ?? false;
+          
+          state = AuthState(
+            status: AuthStatus.authenticated, 
+            user: user,
+            isPremium: isPremium,
+          );
+        } catch (_) {
+          // Profil çekilemese de kullanıcı giriş yapmış sayılır
+          state = AuthState(
+            status: AuthStatus.authenticated, 
+            user: user,
+            isPremium: false,
+          );
+        }
       } else {
         state = const AuthState(status: AuthStatus.unauthenticated);
       }
@@ -68,6 +80,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
       await _authService.signInWithEmail(email, password);
+      // Not: Durum güncellemesi _init içindeki listener tarafından yapılacak
     } catch (e) {
       state = AuthState(
         status: AuthStatus.error,
@@ -90,13 +103,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
         displayName: displayName,
       );
 
-      // Firestore'da kullanıcı profili oluştur
+      // Firestore'da kullanıcı profili oluştur (Opsiyonel: Hata uygulama akışını bozmamalı)
       if (credential.user != null) {
-        await _firestoreService.createUserProfile(
-          uid: credential.user!.uid,
-          email: email,
-          displayName: displayName,
-        );
+        try {
+          await _firestoreService.createUserProfile(
+            uid: credential.user!.uid,
+            email: email,
+            displayName: displayName,
+          ).timeout(const Duration(seconds: 10));
+        } catch (e) {
+          print("Profil oluşturma hatası: $e");
+          // Profil oluşmasa da kullanıcı kayıt oldu, devam edebilir
+        }
       }
     } catch (e) {
       state = AuthState(

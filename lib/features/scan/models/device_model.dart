@@ -8,6 +8,8 @@ class DeviceModel extends Equatable {
   final List<int> openPorts;
   final bool isHost;
   final bool isScanningPorts;
+  final bool isFavorite;
+  final String? customEmoji;
 
   const DeviceModel({
     required this.ipAddress,
@@ -17,6 +19,8 @@ class DeviceModel extends Equatable {
     this.openPorts = const [],
     this.isHost = false,
     this.isScanningPorts = false,
+    this.isFavorite = false,
+    this.customEmoji,
   });
 
   DeviceModel copyWith({
@@ -27,6 +31,8 @@ class DeviceModel extends Equatable {
     List<int>? openPorts,
     bool? isHost,
     bool? isScanningPorts,
+    bool? isFavorite,
+    String? customEmoji,
   }) {
     return DeviceModel(
       ipAddress: ipAddress ?? this.ipAddress,
@@ -36,6 +42,8 @@ class DeviceModel extends Equatable {
       openPorts: openPorts ?? this.openPorts,
       isHost: isHost ?? this.isHost,
       isScanningPorts: isScanningPorts ?? this.isScanningPorts,
+      isFavorite: isFavorite ?? this.isFavorite,
+      customEmoji: customEmoji ?? this.customEmoji,
     );
   }
 
@@ -48,5 +56,7 @@ class DeviceModel extends Equatable {
         openPorts,
         isHost,
         isScanningPorts,
+        isFavorite,
+        customEmoji,
       ];
 }

@@ -7,6 +7,7 @@ class HiveService {
   static const String _achievementsBox = 'achievements';
   static const String _settingsBox = 'settings';
   static const String _macCacheBox = 'mac_cache';
+  static const String _scanHistoryBox = 'scan_history';
 
   /// Hive'ı başlat ve box'ları aç
   static Future<void> init() async {
@@ -16,6 +17,7 @@ class HiveService {
     await Hive.openBox(_achievementsBox);
     await Hive.openBox(_settingsBox);
     await Hive.openBox(_macCacheBox);
+    await Hive.openBox(_scanHistoryBox);
   }
 
   // ─── Cihaz Etiketleri ─────────────────────────────────
@@ -118,5 +120,36 @@ class HiveService {
       result[key as String] = Map<String, dynamic>.from(box.get(key));
     }
     return result;
+  }
+
+  // ─── Tarama Geçmişi (Local Only) ──────────────────────
+
+  /// Tarama sonucunu kaydet
+  static Future<void> saveScanResult(Map<String, dynamic> scanData) async {
+    final box = Hive.box(_scanHistoryBox);
+    final id = DateTime.now().millisecondsSinceEpoch.toString();
+    await box.put(id, {
+      ...scanData,
+      'id': id,
+      'scannedAt': DateTime.now().toIso8601String(),
+    });
+  }
+
+  /// Tüm tarama geçmişini getir (Tarihe göre azalan)
+  static List<Map<String, dynamic>> getScanHistory() {
+    final box = Hive.box(_scanHistoryBox);
+    final List<Map<String, dynamic>> history = [];
+    for (final key in box.keys) {
+      history.add(Map<String, dynamic>.from(box.get(key)));
+    }
+    // Tarihe göre sırala (Yeni en üstte)
+    history.sort((a, b) => b['scannedAt'].compareTo(a['scannedAt']));
+    return history;
+  }
+
+  /// Tüm geçmişi temizle
+  static Future<void> clearHistory() async {
+    final box = Hive.box(_scanHistoryBox);
+    await box.clear();
   }
 }

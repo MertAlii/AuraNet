@@ -112,11 +112,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             SliverToBoxAdapter(
               child: _buildSummaryCards(homeState),
             ),
-            // Hızlı erişim
+            // Cihazlar ve Güvenlik (Hızlı Erişim)
             SliverToBoxAdapter(
               child: _buildQuickAccess(homeState),
             ),
-            // Gelişmiş araçlar
+            // Gelişmiş Araçlar (Sadece Navbar'da olmayanlar)
             SliverToBoxAdapter(
               child: _buildAdvancedTools(homeState),
             ),
@@ -174,6 +174,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ],
             ),
           ),
+          // Tarama Geçmişi butonu
+          IconButton(
+            icon: const Icon(Icons.history_rounded, color: AppColors.textSecondary),
+            onPressed: () => context.push('/history'),
+          ),
+          const SizedBox(width: 8),
           // Profil avatarı
           GestureDetector(
             onTap: () {
@@ -335,23 +341,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           Expanded(
             child: _quickAccessCard(
-              icon: Icons.speed_rounded,
-              title: 'Speedtest',
-              subtitle: state.lastDownloadSpeed > 0
-                  ? '${state.lastDownloadSpeed.toStringAsFixed(1)} Mbps'
-                  : 'Test et',
-              color: AppColors.primaryBlue,
-              onTap: () {},
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _quickAccessCard(
               icon: Icons.devices_rounded,
               title: 'Cihazlar',
               subtitle: state.deviceCount > 0
-                  ? '${state.deviceCount} cihaz'
-                  : 'Tara',
+                  ? '${state.deviceCount} cihaz tespit edildi'
+                  : 'Ağınızı tarayın',
               color: AppColors.safe,
               onTap: () {
                 _showScanOptions(context);
@@ -370,19 +364,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           Expanded(
             child: _quickAccessCard(
-              icon: Icons.wifi_find_rounded,
-              title: 'Wi-Fi Analiz',
-              subtitle: 'Kanal & Sinyal',
-              color: AppColors.primaryBlueLight,
-              onTap: () => context.push('/analyzer'),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _quickAccessCard(
               icon: Icons.security_rounded,
-              title: 'Gelişmiş',
-              subtitle: 'Sızıntı & ARP',
+              title: 'Gelişmiş Güvenlik',
+              subtitle: 'DNS Sızıntı & ARP Koruması',
               color: AppColors.warning,
               onTap: () => context.push('/security'),
             ),
