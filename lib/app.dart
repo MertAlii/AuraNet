@@ -9,6 +9,15 @@ import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/register_screen.dart';
 import 'features/home/screens/home_screen.dart';
 import 'features/profile/screens/profile_screen.dart';
+import 'features/scan/screens/scan_screen.dart';
+import 'features/scan/screens/device_detail_screen.dart';
+import 'features/scan/screens/port_dictionary_screen.dart';
+import 'features/speedtest/screens/speedtest_screen.dart';
+import 'features/analyzer/screens/wifi_analyzer_screen.dart';
+import 'features/security/screens/advanced_security_screen.dart';
+import 'features/premium/screens/premium_screen.dart';
+import 'features/scan/models/device_model.dart';
+import 'core/services/network_scanner_service.dart';
 
 /// Go Router konfigürasyonu
 final routerProvider = Provider<GoRouter>((ref) {
@@ -39,7 +48,45 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/profile',
             builder: (context, state) => const ProfileScreen(),
           ),
+          GoRoute(
+            path: '/speedtest',
+            builder: (context, state) => const SpeedtestScreen(),
+          ),
+          GoRoute(
+            path: '/analyzer',
+            builder: (context, state) => const WiFiAnalyzerScreen(),
+          ),
+          GoRoute(
+            path: '/security',
+            builder: (context, state) => const AdvancedSecurityScreen(),
+          ),
+          GoRoute(
+            path: '/premium',
+            builder: (context, state) => const PremiumScreen(),
+          ),
         ],
+      ),
+      GoRoute(
+        path: '/scan',
+        builder: (context, state) {
+          final modeStr = state.extra as String?;
+          final mode = modeStr == 'deep' ? ScanMode.deep : ScanMode.fast;
+          return ScanScreen(initialMode: mode);
+        },
+      ),
+      GoRoute(
+        path: '/deviceDetail',
+        builder: (context, state) {
+          final device = state.extra as DeviceModel;
+          return DeviceDetailScreen(device: device);
+        },
+      ),
+      GoRoute(
+        path: '/portDictionary',
+        builder: (context, state) {
+          final port = state.extra as int?;
+          return PortDictionaryScreen(initialPort: port ?? 0);
+        },
       ),
     ],
   );
@@ -54,7 +101,9 @@ class MainShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
     int currentIndex = 0;
-    if (location.startsWith('/profile')) currentIndex = 1;
+    if (location.startsWith('/analyzer')) currentIndex = 1;
+    if (location.startsWith('/speedtest')) currentIndex = 2;
+    if (location.startsWith('/profile')) currentIndex = 3;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundDeep,
@@ -82,9 +131,21 @@ class MainShell extends StatelessWidget {
                   onTap: () => context.go('/home'),
                 ),
                 _navItem(
+                  icon: Icons.wifi_find_rounded,
+                  label: 'Analiz',
+                  isActive: currentIndex == 1,
+                  onTap: () => context.go('/analyzer'),
+                ),
+                _navItem(
+                  icon: Icons.speed_rounded,
+                  label: 'Hız Testi',
+                  isActive: currentIndex == 2,
+                  onTap: () => context.go('/speedtest'),
+                ),
+                _navItem(
                   icon: Icons.person_rounded,
                   label: 'Profil',
-                  isActive: currentIndex == 1,
+                  isActive: currentIndex == 3,
                   onTap: () => context.go('/profile'),
                 ),
               ],

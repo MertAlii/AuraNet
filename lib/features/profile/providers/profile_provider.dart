@@ -78,7 +78,26 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       }
     }
   }
+
+  /// Fake Premium Toggle (Test Amaçlı Müşteri İsteği)
+  Future<void> toggleFakePremium() async {
+    final newState = !state.isPremium;
+    state = state.copyWith(isPremium: newState);
+    
+    // Auth provider'dan user id'yi alıp firestore servisini de güncelleyelim.
+    final authState = _ref.read(authProvider);
+    final user = authState.user;
+    if (user != null) {
+      try {
+        final firestoreService = _ref.read(firestoreServiceProvider);
+        await firestoreService.updatePremiumStatus(user.uid, newState);
+      } catch (e) {
+        // Silently fail for UI test
+      }
+    }
+  }
 }
+
 
 final profileProvider = StateNotifierProvider<ProfileNotifier, ProfileState>((ref) {
   return ProfileNotifier(ref);

@@ -36,6 +36,13 @@ class FirestoreService {
     await _usersCollection.doc(uid).update(data);
   }
 
+  /// Premium durumunu test amaçlı güncelle
+  Future<void> updatePremiumStatus(String uid, bool isPremium) async {
+    await _usersCollection.doc(uid).update({
+      'isPremium': isPremium,
+    });
+  }
+
   /// Tarama sayısını artır
   Future<void> incrementScanCount(String uid) async {
     await _usersCollection.doc(uid).update({

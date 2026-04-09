@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../profile/screens/terms_screen.dart';
 import '../providers/auth_provider.dart';
 
 /// Kayıt ekranı — Ad Soyad, Email, Şifre, Şifre güç göstergesi
@@ -25,6 +26,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
   double _passwordStrength = 0;
   String _passwordStrengthText = '';
   Color _passwordStrengthColor = AppColors.danger;
+  bool _acceptedTerms = false;
 
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
@@ -83,6 +85,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!_acceptedTerms) {
+      _showError('Kayıt olmak için Kullanım Koşulları ve Gizlilik Politikasını kabul etmelisiniz.');
+      return;
+    }
     setState(() => _isLoading = true);
 
     await ref.read(authProvider.notifier).registerWithEmail(
@@ -152,7 +158,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                     const SizedBox(height: 16),
                     // Şifre tekrar
                     _buildConfirmPasswordField(),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 20),
+                    // Hizmet sözleşmesi checkbox
+                    _buildTermsCheckbox(),
+                    const SizedBox(height: 24),
                     // Kayıt butonu
                     _buildRegisterButton(),
                     const SizedBox(height: 24),
@@ -323,6 +332,67 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
         if (v != _passwordController.text) return 'Şifreler eşleşmiyor';
         return null;
       },
+    );
+  }
+
+  Widget _buildTermsCheckbox() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        SizedBox(
+          width: 24,
+          height: 24,
+          child: Checkbox(
+            value: _acceptedTerms,
+            activeColor: AppColors.primaryBlue,
+            side: const BorderSide(color: AppColors.textHint),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            onChanged: (val) {
+              setState(() => _acceptedTerms = val ?? false);
+            },
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              GestureDetector(
+                onTap: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => const FractionallySizedBox(
+                      heightFactor: 0.9,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                        child: TermsScreen(),
+                      ),
+                    ),
+                  );
+                },
+                child: Text(
+                  'Kullanım Koşulları ve Gizlilik Politikasını',
+                  style: TextStyle(
+                    color: AppColors.primaryBlue,
+                    fontSize: 12,
+                    decoration: TextDecoration.underline,
+                    decorationColor: AppColors.primaryBlue.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+              const Text(
+                ' okudum ve kabul ediyorum.',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

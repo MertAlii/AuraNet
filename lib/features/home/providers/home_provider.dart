@@ -53,21 +53,27 @@ class HomeState {
 class HomeNotifier extends StateNotifier<HomeState> {
   HomeNotifier() : super(const HomeState());
 
-  /// Tarama simülasyonu (Faz 2'de gerçek tarama eklenecek)
-  Future<void> startScan() async {
-    state = state.copyWith(isScanning: true);
+  /// Tarama asıl olarak ScanProvider tarafından tetiklenecek, 
+  /// HomeScreen'de UI durumu için UI'ın start fonksiyonu değişecek.
+  // startScan is now managed by ScanProvider, but we provide methods for it to update HomeState
+  
+  void setScanningState(bool isScanning) {
+    state = state.copyWith(isScanning: isScanning);
+  }
 
-    // Simüle edilmiş tarama süresi
-    await Future.delayed(const Duration(seconds: 3));
-
+  void updateScanResults({
+    required int score,
+    required int devices,
+    required int openPorts,
+    required int suspicious,
+    String? network,
+  }) {
     state = state.copyWith(
-      isScanning: false,
-      securityScore: 78,
-      deviceCount: 6,
-      openPortCount: 3,
-      suspiciousCount: 1,
-      networkName: 'Bağlı Ağ',
-      routerBrand: 'Router',
+      securityScore: score,
+      deviceCount: devices,
+      openPortCount: openPorts,
+      suspiciousCount: suspicious,
+      networkName: network,
     );
   }
 

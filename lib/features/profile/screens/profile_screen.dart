@@ -40,7 +40,7 @@ class ProfileScreen extends ConsumerWidget {
               _buildProfileCard(profile),
               const SizedBox(height: 16),
               // Abonelik durumu
-              _buildSubscriptionCard(profile),
+              _buildSubscriptionCard(context, ref, profile),
               const SizedBox(height: 16),
               // İstatistikler
               _buildStatsCard(profile),
@@ -120,7 +120,7 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSubscriptionCard(ProfileState profile) {
+  Widget _buildSubscriptionCard(BuildContext context, WidgetRef ref, ProfileState profile) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -181,22 +181,28 @@ class ProfileScreen extends ConsumerWidget {
               ],
             ),
           ),
-          if (!profile.isPremium)
-            Container(
+          // Toggle Premium Action
+          GestureDetector(
+            onTap: () {
+              ref.read(profileProvider.notifier).toggleFakePremium();
+            },
+            child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                gradient: AppColors.premiumGradient,
+                gradient: profile.isPremium ? null : AppColors.premiumGradient,
+                color: profile.isPremium ? AppColors.danger.withValues(alpha: 0.15) : null,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Text(
-                'Yükselt',
+              child: Text(
+                profile.isPremium ? 'İptal Et' : 'Yükselt',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: profile.isPremium ? AppColors.danger : Colors.white,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
+          ),
         ],
       ),
     );

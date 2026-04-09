@@ -10,22 +10,26 @@ enum AuthStatus { initial, loading, authenticated, unauthenticated, error }
 class AuthState {
   final AuthStatus status;
   final User? user;
+  final bool isPremium;
   final String? errorMessage;
 
   const AuthState({
     this.status = AuthStatus.initial,
     this.user,
+    this.isPremium = false,
     this.errorMessage,
   });
 
   AuthState copyWith({
     AuthStatus? status,
     User? user,
+    bool? isPremium,
     String? errorMessage,
   }) {
     return AuthState(
       status: status ?? this.status,
       user: user ?? this.user,
+      isPremium: isPremium ?? this.isPremium,
       errorMessage: errorMessage,
     );
   }
@@ -42,9 +46,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   void _init() {
-    _authService.authStateChanges.listen((user) {
+    _authService.authStateChanges.listen((user) async {
       if (user != null) {
-        state = AuthState(status: AuthStatus.authenticated, user: user);
+        // Firestore'dan premium durumunu çek
+        final profile = await _firestoreService.getUserProfile(user.uid);
+        final isPremium = profile?['isPremium'] ?? false;
+        
+        state = AuthState(
+          status: AuthStatus.authenticated, 
+          user: user,
+          isPremium: isPremium,
+        );
       } else {
         state = const AuthState(status: AuthStatus.unauthenticated);
       }
@@ -126,6 +138,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Hata mesajını temizle
   void clearError() {
     state = state.copyWith(errorMessage: null);
+  }
+
+  /// Premium durumunu simüle et
+  void setPremium(bool value) {
+    state = state.copyWith(isPremium: value);
   }
 }
 
