@@ -1,24 +1,18 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/services/hive_service.dart';
+import '../providers/speedtest_provider.dart';
 
-class SpeedtestScreen extends StatefulWidget {
+class SpeedtestScreen extends ConsumerStatefulWidget {
   const SpeedtestScreen({super.key});
 
   @override
-  State<SpeedtestScreen> createState() => _SpeedtestScreenState();
+  ConsumerState<SpeedtestScreen> createState() => _SpeedtestScreenState();
 }
 
-class _SpeedtestScreenState extends State<SpeedtestScreen> with SingleTickerProviderStateMixin {
-  bool _isTesting = false;
-  String _testPhase = 'Hazır'; // 'Hazır', 'Ping', 'Download', 'Upload', 'Tamamlandı'
-  
-  double _ping = 0.0;
-  double _download = 0.0;
-  double _upload = 0.0;
-  double _currentValue = 0.0;
-
+class _SpeedtestScreenState extends ConsumerState<SpeedtestScreen> with TickerProviderStateMixin {
   late AnimationController _animController;
   late Animation<double> _pulseAnimation;
 
@@ -35,60 +29,11 @@ class _SpeedtestScreenState extends State<SpeedtestScreen> with SingleTickerProv
     super.dispose();
   }
 
-  void _startTest() async {
-    setState(() {
-      _isTesting = true;
-      _testPhase = 'Ping Bağlantısı İzi Sürmesi...';
-      _ping = 0;
-      _download = 0;
-      _upload = 0;
-      _currentValue = 0;
-    });
-
-    final random = Random();
-
-    // Ping Phase
-    for (int i = 0; i <= 20; i++) {
-      await Future.delayed(const Duration(milliseconds: 50));
-      setState(() {
-        _ping = 15.0 + random.nextDouble() * 10; 
-      });
-    }
-
-    // Download Phase
-    setState(() => _testPhase = 'İndirme Testi (Download)...');
-    double targetDownload = 80.0 + random.nextDouble() * 50; 
-    for (int i = 0; i <= 50; i++) {
-      await Future.delayed(const Duration(milliseconds: 100));
-      setState(() {
-        _currentValue = (targetDownload / 50) * i + (random.nextDouble() * 5);
-        _download = _currentValue;
-      });
-    }
-
-    // Upload Phase
-    setState(() {
-      _testPhase = 'Yükleme Testi (Upload)...';
-      _currentValue = 0;
-    });
-    double targetUpload = 20.0 + random.nextDouble() * 20;
-    for (int i = 0; i <= 50; i++) {
-      await Future.delayed(const Duration(milliseconds: 100));
-      setState(() {
-        _currentValue = (targetUpload / 50) * i + (random.nextDouble() * 2);
-        _upload = _currentValue;
-      });
-    }
-
-    setState(() {
-      _testPhase = 'Tamamlandı';
-      _isTesting = false;
-      _currentValue = 0;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
+    final speedState = ref.watch(speedtestProvider);
+    final isTesting = speedState.isTesting;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Hız Testi')),
       body: SingleChildScrollView(
@@ -105,15 +50,15 @@ class _SpeedtestScreenState extends State<SpeedtestScreen> with SingleTickerProv
                     width: 250,
                     height: 250,
                     child: CircularProgressIndicator(
-                      value: _isTesting ? (_currentValue / 150).clamp(0.0, 1.0) : 0,
+                      value: isTesting ? (speedState.currentValue / 150).clamp(0.0, 1.0) : 0,
                       strokeWidth: 15,
                       backgroundColor: AppColors.backgroundBorder.withValues(alpha: 0.3),
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        _testPhase.contains('Upload') ? AppColors.warning : AppColors.primaryBlueLight
+                        speedState.phase.contains('Yükleme') ? AppColors.warning : AppColors.primaryBlueLight
                       ),
                     ),
                   ),
-                  if (_isTesting)
+                  if (isTesting)
                     ScaleTransition(
                       scale: _pulseAnimation,
                       child: Container(
@@ -129,14 +74,14 @@ class _SpeedtestScreenState extends State<SpeedtestScreen> with SingleTickerProv
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        _isTesting ? _currentValue.toStringAsFixed(1) : 'GO',
+                        isTesting ? speedState.currentValue.toStringAsFixed(1) : (speedState.phase == 'Tamamlandı' ? speedState.download.toStringAsFixed(1) : 'GO'),
                         style: TextStyle(
-                          fontSize: _isTesting ? 48 : 56,
+                          fontSize: isTesting ? 48 : 56,
                           fontWeight: FontWeight.bold,
-                          color: _isTesting ? AppColors.textPrimary : AppColors.primaryBlueLight,
+                          color: isTesting ? AppColors.textPrimary : AppColors.primaryBlueLight,
                         ),
                       ),
-                      if (_isTesting)
+                      if (isTesting || speedState.phase == 'Tamamlandı')
                         const Text(
                           'Mbps',
                           style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
@@ -150,7 +95,7 @@ class _SpeedtestScreenState extends State<SpeedtestScreen> with SingleTickerProv
 
             // Status Text
             Text(
-              _testPhase,
+              speedState.phase,
               style: const TextStyle(color: AppColors.textSecondary, fontSize: 16, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 24),
@@ -158,11 +103,11 @@ class _SpeedtestScreenState extends State<SpeedtestScreen> with SingleTickerProv
             // Result Cards
             Row(
               children: [
-                Expanded(child: _buildResultCard('Ping', '${_ping.toStringAsFixed(0)} ms', Icons.compare_arrows_rounded, AppColors.safe)),
+                Expanded(child: _buildResultCard('Ping', '${speedState.ping.toStringAsFixed(0)} ms', Icons.compare_arrows_rounded, AppColors.safe)),
                 const SizedBox(width: 16),
-                Expanded(child: _buildResultCard('Download', '${_download.toStringAsFixed(1)}', Icons.download_rounded, AppColors.primaryBlueLight)),
+                Expanded(child: _buildResultCard('Download', speedState.download.toStringAsFixed(1), Icons.download_rounded, AppColors.primaryBlueLight)),
                 const SizedBox(width: 16),
-                Expanded(child: _buildResultCard('Upload', '${_upload.toStringAsFixed(1)}', Icons.upload_rounded, AppColors.warning)),
+                Expanded(child: _buildResultCard('Upload', speedState.upload.toStringAsFixed(1), Icons.upload_rounded, AppColors.warning)),
               ],
             ),
             const SizedBox(height: 48),
@@ -172,7 +117,7 @@ class _SpeedtestScreenState extends State<SpeedtestScreen> with SingleTickerProv
               width: double.infinity,
               height: 56,
               child: ElevatedButton(
-                onPressed: _isTesting ? null : _startTest,
+                onPressed: isTesting ? null : () => ref.read(speedtestProvider.notifier).startTest(),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryBlueDark,
                   foregroundColor: AppColors.primaryBlueLight,
@@ -180,14 +125,91 @@ class _SpeedtestScreenState extends State<SpeedtestScreen> with SingleTickerProv
                   elevation: 0,
                 ),
                 child: Text(
-                  _testPhase == 'Tamamlandı' ? 'Yeniden Test Et' : 'Testi Başlat',
+                  speedState.phase == 'Tamamlandı' ? 'Yeniden Test Et' : 'Testi Başlat',
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
+            // Son Testler başlığı
+            const SizedBox(height: 48),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Son Testler',
+                style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildHistoryList(),
+            const SizedBox(height: 32),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildHistoryList() {
+    final history = HiveService.getSpeedtestHistory();
+    if (history.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AppColors.backgroundCard,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Center(
+          child: Text('Henüz test geçmişi yok', style: TextStyle(color: AppColors.textHint)),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: history.length,
+      itemBuilder: (context, index) {
+        final item = history[index];
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.backgroundCard,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                   Text(
+                    item['createdAt'].toString().substring(0, 10), 
+                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text('Wi-Fi Ağı', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w500)),
+                ],
+              ),
+              Row(
+                children: [
+                   _buildMiniStat(item['download'].toStringAsFixed(1), 'DL', AppColors.primaryBlueLight),
+                   const SizedBox(width: 12),
+                   _buildMiniStat(item['upload'].toStringAsFixed(1), 'UL', AppColors.warning),
+                ],
+              )
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMiniStat(String value, String label, Color color) {
+    return Column(
+      children: [
+        Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 15)),
+        Text(label, style: const TextStyle(color: AppColors.textHint, fontSize: 10)),
+      ],
     );
   }
 

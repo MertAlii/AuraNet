@@ -1,6 +1,47 @@
 import 'dart:io';
+import 'package:network_tools/network_tools.dart';
+import 'hive_service.dart';
 
 class ArpService {
+  /// network_tools çıktılarından ARP Spoofing tespiti yapar.
+  static Future<List<String>> detectSpoofingFromHosts(List<ActiveHost> hosts, String? gatewayIp) async {
+    final List<String> warnings = [];
+    final Map<String, List<String>> macToIps = {};
+
+    for (var host in hosts) {
+      final macData = await host.arpData;
+      final mac = macData?.macAddress?.toUpperCase();
+      if (mac != null && mac != '00:00:00:00:00:00') {
+        macToIps.putIfAbsent(mac, () => []).add(host.address);
+      }
+    }
+
+    // 1. MAC Çakışması Kontrolü
+    macToIps.forEach((mac, ips) {
+      if (ips.length > 1) {
+        warnings.add('Şüpheli MAC Çakışması: $mac adresi ${ips.join(", ")} IP adresleri tarafından kullanılıyor. (Olası ARP Spoofing)');
+      }
+    });
+
+    // 2. Gateway MAC Değişimi Kontrolü
+    if (gatewayIp != null) {
+      final gatewayHost = hosts.firstWhere((h) => h.address == gatewayIp, orElse: () => hosts.first);
+      final macData = await gatewayHost.arpData;
+      final currentGatewayMac = macData?.macAddress?.toUpperCase();
+      
+      if (currentGatewayMac != null) {
+        final savedGatewayMac = HiveService.getGatewayMac();
+        if (savedGatewayMac != null && savedGatewayMac != currentGatewayMac) {
+          warnings.add('VAR Uyarı: Gateway MAC adresi değişti! Eski: $savedGatewayMac, Yeni: $currentGatewayMac. Bu bir MITM saldırısı belirtisi olabilir.');
+        }
+        // Mevcut olanı kaydet
+        HiveService.saveGatewayMac(currentGatewayMac);
+      }
+    }
+
+    return warnings;
+  }
+
   /// ARP tablosunu (/proc/net/arp) okur ve IP -> MAC eşleşmelerini döner.
   /// Not: Android 10+ cihazlarda bu dosyanın okunması kısıtlanmış olabilir.
   static Future<Map<String, String>> getArpTable() async {

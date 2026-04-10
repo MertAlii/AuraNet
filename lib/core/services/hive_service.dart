@@ -8,6 +8,7 @@ class HiveService {
   static const String _settingsBox = 'settings';
   static const String _macCacheBox = 'mac_cache';
   static const String _scanHistoryBox = 'scan_history';
+  static const String _speedtestHistoryBox = 'speedtest_history';
 
   /// Hive'ı başlat ve box'ları aç
   static Future<void> init() async {
@@ -18,6 +19,7 @@ class HiveService {
     await Hive.openBox(_settingsBox);
     await Hive.openBox(_macCacheBox);
     await Hive.openBox(_scanHistoryBox);
+    await Hive.openBox(_speedtestHistoryBox);
   }
 
   // ─── Cihaz Etiketleri ─────────────────────────────────
@@ -97,6 +99,16 @@ class HiveService {
     return box.get(key, defaultValue: defaultValue) as T?;
   }
 
+  /// Gateway MAC adresini getir
+  static String? getGatewayMac() {
+    return getSetting<String>('gateway_mac');
+  }
+
+  /// Gateway MAC adresini kaydet
+  static Future<void> saveGatewayMac(String mac) async {
+    await saveSetting('gateway_mac', mac);
+  }
+
   // ─── Ağ Profilleri ─────────────────────────────────
 
   /// Ağ profili kaydet
@@ -151,5 +163,28 @@ class HiveService {
   static Future<void> clearHistory() async {
     final box = Hive.box(_scanHistoryBox);
     await box.clear();
+  }
+
+  // ─── Hız Testi Geçmişi ────────────────────────────────
+  
+  /// Hız testi sonucunu kaydet
+  static Future<void> saveSpeedtestResult(Map<String, dynamic> result) async {
+    final box = Hive.box(_speedtestHistoryBox);
+    final id = DateTime.now().millisecondsSinceEpoch.toString();
+    await box.put(id, {
+      ...result,
+      'createdAt': DateTime.now().toIso8601String(),
+    });
+  }
+
+  /// Hız testi geçmişini getir (Yeni en üstte)
+  static List<Map<String, dynamic>> getSpeedtestHistory() {
+    final box = Hive.box(_speedtestHistoryBox);
+    final List<Map<String, dynamic>> results = [];
+    for (final key in box.keys) {
+      results.add(Map<String, dynamic>.from(box.get(key)));
+    }
+    results.sort((a, b) => b['createdAt'].compareTo(a['createdAt']));
+    return results.take(10).toList(); // Son 10 test
   }
 }

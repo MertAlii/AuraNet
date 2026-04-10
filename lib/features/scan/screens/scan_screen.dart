@@ -60,19 +60,22 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
         ),
         actions: [
           if (scanState.isScanning)
-            const Padding(
-              padding: EdgeInsets.only(right: 16.0),
+            Padding(
+              padding: const EdgeInsets.only(right: 16.0),
               child: Center(
-                child: SizedBox(
-                  width: 20, height: 20,
-                  child: CircularProgressIndicator(color: AppColors.primaryBlue, strokeWidth: 2),
-                ),
+                child: Text('%${(scanState.progress * 100).toInt()}', style: const TextStyle(color: AppColors.primaryBlueLight, fontWeight: FontWeight.bold)),
               ),
             ),
         ],
       ),
       body: Column(
         children: [
+          if (scanState.isScanning)
+             LinearProgressIndicator(
+               value: scanState.progress > 0 ? scanState.progress : null, 
+               color: AppColors.primaryBlue, 
+               backgroundColor: AppColors.primaryBlue.withOpacity(0.1)
+             ),
           // Üst bilgi kartı
           _buildInfoCard(scanState),
 

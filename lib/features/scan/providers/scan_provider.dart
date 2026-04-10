@@ -89,50 +89,79 @@ class ScanNotifier extends StateNotifier<ScanState> {
       final stream = _scannerService.scanNetworkStream(subnet, mode, isPremium: isPremium);
       
       _scanSubscription = stream.listen(
-        (device) {
-          // Gelen cihazın isHost durumunu ayarla
-          final isHost = device.ipAddress == localIp;
-          final processedDevice = device.copyWith(isHost: isHost);
+        (progressInfo) {
+          if (progressInfo.isDone) {
+            _finishScan();
+            return;
+          }
 
-          // 3. Hive'dan yerel etiketleri (İsim, Emoji, Favori) yükle
-          final label = HiveService.getDeviceLabel(processedDevice.macAddress);
-          DeviceModel finalDevice = processedDevice;
-          if (label != null) {
-            finalDevice = processedDevice.copyWith(
-              deviceName: label['customName'] ?? processedDevice.deviceName,
-              customEmoji: label['customEmoji'],
-              isFavorite: label['isFavorite'] ?? false,
+          if (progressInfo.device != null) {
+            final device = progressInfo.device!;
+            // Gelen cihazın isHost durumunu ayarla
+            final isHost = device.ipAddress == localIp;
+            final processedDevice = device.copyWith(isHost: isHost);
+
+            // 3. Hive'dan yerel etiketleri yükle
+            final label = HiveService.getDeviceLabel(processedDevice.macAddress);
+            DeviceModel finalDevice = processedDevice;
+            if (label != null) {
+              finalDevice = processedDevice.copyWith(
+                deviceName: label['customName'] ?? processedDevice.deviceName,
+                customEmoji: label['customEmoji'],
+                isFavorite: label['isFavorite'] ?? false,
+              );
+            } else if (processedDevice.deviceName == 'Bilinmeyen Cihaz' || processedDevice.deviceName == processedDevice.ipAddress) {
+               finalDevice = processedDevice.copyWith(deviceName: processedDevice.ipAddress);
+            }
+
+            if (isHost && !finalDevice.deviceName.endsWith('(Siz)')) {
+              finalDevice = finalDevice.copyWith(deviceName: '${finalDevice.deviceName} (Siz)');
+            }
+
+            // Cihaz listedeyse güncelle, yoksa ekle
+            final currentList = List<DeviceModel>.from(state.devices);
+            final index = currentList.indexWhere((d) => d.ipAddress == finalDevice.ipAddress);
+            
+            if (index >= 0) {
+              currentList[index] = finalDevice;
+            } else {
+              currentList.add(finalDevice);
+            }
+
+            state = state.copyWith(devices: currentList, progress: progressInfo.progress);
+            
+            // Arka planda bildirimi güncelle (Her cihaz bulunduğunda progress artarsa)
+            NotificationService.showProgressNotification(
+              id: 999, 
+              title: 'AuraNet Ağ Taraması', 
+              body: '${currentList.length} Cihaz Bulundu', 
+              progress: (progressInfo.progress * 100).toInt(), 
+              maxProgress: 100
             );
-          } else if (processedDevice.deviceName == 'Bilinmeyen Cihaz' || processedDevice.deviceName == processedDevice.ipAddress) {
-             // Eğer hostname bulunamadıysa ama Hive'da etiket yoksa IP'yi isim olarak gösterelim (Daha modern)
-             finalDevice = processedDevice.copyWith(deviceName: processedDevice.ipAddress);
-          }
 
-          // Cihaz listedeyse güncelle, yoksa ekle
-          final currentList = List<DeviceModel>.from(state.devices);
-          final index = currentList.indexWhere((d) => d.ipAddress == finalDevice.ipAddress);
-          
-          if (index >= 0) {
-            currentList[index] = finalDevice;
+            // Yeni cihaz kontrolü
+            if (index < 0 && !finalDevice.isHost) {
+              _checkAndNotifyNewDevice(finalDevice);
+            }
           } else {
-            currentList.add(finalDevice);
-          }
-
-          // Progress hesapla (Basit simülasyon)
-          double newProgress = state.progress + 0.01;
-          if (newProgress > 0.95) newProgress = 0.95;
-
-          state = state.copyWith(devices: currentList, progress: newProgress);
-
-          // Yeni cihaz kontrolü (Eğer tarama bitmediyse ve yeni cihaz eklendiyse)
-          if (index < 0 && !finalDevice.isHost) {
-            _checkAndNotifyNewDevice(finalDevice);
+            // Sadece progress güncelleme
+            state = state.copyWith(progress: progressInfo.progress);
+            NotificationService.showProgressNotification(
+              id: 999, 
+              title: 'AuraNet Ağ Taraması', 
+              body: 'Taranıyor...', 
+              progress: (progressInfo.progress * 100).toInt(), 
+              maxProgress: 100
+            );
           }
         },
-        onDone: () => _finishScan(),
+        onDone: () {
+          _finishScan();
+        },
         onError: (e) {
           state = state.copyWith(isScanning: false, error: 'Tarama hatası: $e', progress: 0.0);
           _ref.read(homeProvider.notifier).setScanningState(false);
+          NotificationService.cancelNotification(999);
         },
       );
     } catch (e) {
@@ -149,11 +178,15 @@ class ScanNotifier extends StateNotifier<ScanState> {
     }
     state = state.copyWith(isScanning: false, progress: 0.0);
     _ref.read(homeProvider.notifier).setScanningState(false);
+    NotificationService.cancelNotification(999);
   }
 
   /// Tarama bittiğinde istatistikleri ve geçmişi kaydet
   Future<void> _finishScan() async {
+    if (!state.isScanning) return;
+    
     state = state.copyWith(isScanning: false, progress: 1.0);
+    NotificationService.cancelNotification(999); // Bildirimi kapat
 
     // Analiz için ScoreCalculator'ı kullan
     final openPortsCount = state.devices.fold<int>(0, (sum, dev) => sum + dev.openPorts.length);

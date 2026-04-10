@@ -31,7 +31,7 @@ dependencies:
   dio: ^5.7.0
 
   # Network Scanning
-  network_tools: ^3.0.4
+  network_tools: ^6.0.5
 
   # Charts
   fl_chart: ^0.70.2
@@ -52,15 +52,15 @@ dependencies:
   # Notifications
   flutter_local_notifications: ^18.0.1
 
-  # QR
+  # QR & Utils
   qr_flutter: ^4.1.0
   flutter_markdown_plus: ^1.0.7
   equatable: ^2.0.8
   path_provider: ^2.1.5
   network_info_plus: ^7.0.0
-  network_tools_flutter: ^1.0.2
+  network_tools_flutter: ^3.0.3
   wifi_scan: ^0.4.1+2
-  intl: ^0.18.1
+  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:

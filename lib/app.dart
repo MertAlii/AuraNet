@@ -18,6 +18,12 @@ import 'features/security/screens/advanced_security_screen.dart';
 import 'features/premium/screens/premium_screen.dart';
 import 'features/history/screens/history_screen.dart';
 import 'features/scan/models/device_model.dart';
+import 'features/scan/screens/devices_list_screen.dart';
+import 'features/security/screens/dns_test_screen.dart';
+import 'features/security/screens/arp_spoofing_screen.dart';
+import 'features/security/screens/neighbor_networks_screen.dart';
+import 'features/blog/screens/blog_screen.dart';
+import 'features/analyzer/screens/qr_share_screen.dart';
 import 'core/services/network_scanner_service.dart';
 
 /// Go Router konfigürasyonu
@@ -75,7 +81,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/scan',
         builder: (context, state) {
           final modeStr = state.extra as String?;
-          final mode = modeStr == 'deep' ? ScanMode.deep : ScanMode.fast;
+          ScanMode mode = ScanMode.fast;
+          if (modeStr == 'deep') mode = ScanMode.deep;
+          if (modeStr == 'wifi') mode = ScanMode.wifi;
           return ScanScreen(initialMode: mode);
         },
       ),
@@ -91,6 +99,36 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final port = state.extra as int?;
           return PortDictionaryScreen(initialPort: port ?? 0);
+        },
+      ),
+      GoRoute(
+        path: '/devices',
+        builder: (context, state) {
+          final filter = state.uri.queryParameters['filter'];
+          return DevicesListScreen(initialFilter: filter);
+        },
+      ),
+      GoRoute(
+        path: '/dnsTest',
+        builder: (context, state) => const DnsTestScreen(),
+      ),
+      GoRoute(
+        path: '/blog',
+        builder: (context, state) => BlogScreen(),
+      ),
+      GoRoute(
+        path: '/arpSpoofing',
+        builder: (context, state) => const ArpSpoofingScreen(),
+      ),
+      GoRoute(
+        path: '/neighborNetworks',
+        builder: (context, state) => const NeighborNetworksScreen(),
+      ),
+      GoRoute(
+        path: '/qrShare',
+        builder: (context, state) {
+          final ssid = state.extra as String;
+          return QrShareScreen(ssid: ssid);
         },
       ),
     ],

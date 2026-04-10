@@ -304,29 +304,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: Row(
         children: [
           Expanded(
-            child: StatCard(
-              icon: Icons.devices_rounded,
-              label: 'Cihazlar',
-              value: '${state.deviceCount}',
-              color: AppColors.primaryBlue,
+            child: GestureDetector(
+              onTap: () => context.push('/devices?filter=all'),
+              child: StatCard(
+                icon: Icons.devices_rounded,
+                label: 'Cihazlar',
+                value: '${state.deviceCount}',
+                color: AppColors.primaryBlue,
+              ),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: StatCard(
-              icon: Icons.lan_outlined,
-              label: 'Açık Port',
-              value: '${state.openPortCount}',
-              color: AppColors.warning,
+            child: GestureDetector(
+              onTap: () => context.push('/devices?filter=open_ports'),
+              child: StatCard(
+                icon: Icons.lan_outlined,
+                label: 'Açık Port',
+                value: '${state.openPortCount}',
+                color: AppColors.warning,
+              ),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: StatCard(
-              icon: Icons.warning_amber_rounded,
-              label: 'Şüpheli',
-              value: '${state.suspiciousCount}',
-              color: AppColors.danger,
+            child: GestureDetector(
+              onTap: () => context.push('/devices?filter=suspicious'),
+              child: StatCard(
+                icon: Icons.warning_amber_rounded,
+                label: 'Şüpheli',
+                value: '${state.suspiciousCount}',
+                color: AppColors.danger,
+              ),
             ),
           ),
         ],
@@ -348,7 +357,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   : 'Ağınızı tarayın',
               color: AppColors.safe,
               onTap: () {
-                _showScanOptions(context);
+                context.push('/devices?filter=all');
               },
             ),
           ),
@@ -369,6 +378,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               subtitle: 'DNS Sızıntı & ARP Koruması',
               color: AppColors.warning,
               onTap: () => context.push('/security'),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _quickAccessCard(
+              icon: Icons.school_rounded,
+              title: 'Akademi (Blog)',
+              subtitle: 'Ağ Güvenliğini Öğrenin',
+              color: AppColors.primaryBlueLight,
+              onTap: () => context.push('/blog'),
             ),
           ),
         ],
