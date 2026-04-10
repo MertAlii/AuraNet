@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:network_info_plus/network_info_plus.dart';
 import 'package:network_tools/network_tools.dart';
+import 'package:dio/dio.dart';
 import '../../features/scan/models/device_model.dart';
 import '../constants/port_risk_database.dart';
 import 'mac_vendor_service.dart';
@@ -138,9 +139,21 @@ class NetworkScannerService {
     return mac;
   }
 
-  /// Cihaz ismini çözümle - çoklu kaynak
+  /// Cihaz ismini çözümle - çoklu kaynak (İyileştirilmiş)
   Future<String?> _resolveHostname(String ip, dynamic host) async {
-    // 1. network_tools deviceName
+    // 1. mDNS bilgisi (En güvenilir rootsuz isim kaynağı)
+    try {
+      final mdns = await host.mdnsInfo;
+      if (mdns != null && mdns.mdnsName != null) {
+        return mdns.getOnlyTheStartOfMdnsName();
+      }
+    } catch (_) {}
+
+    // 2. SSDP / UPnP Tespiti (TV, Yazıcı vb. için)
+    final upnpName = await _resolveUPnP(ip);
+    if (upnpName != null) return upnpName;
+
+    // 3. network_tools deviceName
     try {
       final name = await host.deviceName;
       if (name != null && name != 'Generic Device' && name != ip) {
@@ -148,126 +161,158 @@ class NetworkScannerService {
       }
     } catch (_) {}
 
-    // 2. mDNS bilgisi
-    try {
-      final mdns = await host.mdnsInfo;
-      if (mdns != null) {
-        return mdns.getOnlyTheStartOfMdnsName();
-      }
-    } catch (_) {}
-
-    // 3. Reverse DNS Lookup
+    // 4. Reverse DNS Lookup
     try {
       final lookup = await InternetAddress(ip).reverse().timeout(const Duration(milliseconds: 500));
       if (lookup.host != ip) return lookup.host;
     } catch (_) {}
 
-    // 4. Standart DNS lookup
+    // 5. Ortak Port Servis Tespiti
+    final serviceName = await _resolveServiceIdentity(ip);
+    if (serviceName != null) return serviceName;
+
+    return null;
+  }
+
+  /// UPnP üzerinden cihaz modeli çözümleme
+  Future<String?> _resolveUPnP(String ip) async {
     try {
-      final lookup = await InternetAddress.lookup(ip).timeout(const Duration(milliseconds: 300));
-      if (lookup.isNotEmpty && lookup.first.host != ip) {
-        return lookup.first.host;
+      // Yaygın UPnP/SSDP lokasyonları
+      final locations = [':80/description.xml', ':8080/description.xml', ':49152/description.xml'];
+      final dio = Dio(BaseOptions(connectTimeout: const Duration(milliseconds: 300)));
+      
+      for (var loc in locations) {
+        try {
+          final res = await dio.get('http://$ip$loc');
+          if (res.statusCode == 200) {
+            final body = res.data.toString();
+            if (body.contains('<friendlyName>')) {
+              return body.split('<friendlyName>')[1].split('</friendlyName>')[0];
+            }
+            if (body.contains('<modelName>')) {
+              return body.split('<modelName>')[1].split('</modelName>')[0];
+            }
+          }
+        } catch (_) {}
       }
     } catch (_) {}
+    return null;
+  }
 
-    // 5. NetBIOS isim sorgusu (Windows cihazları için - port 137)
+  /// Servis bazlı kimlik tespiti (HTTP Server Headers vb.)
+  Future<String?> _resolveServiceIdentity(String ip) async {
     try {
-      final socket = await Socket.connect(ip, 137, timeout: const Duration(milliseconds: 200));
-      socket.destroy();
-      // Port 137 açıksa muhtemelen Windows cihazı
-      return 'Windows Cihaz';
+      final dio = Dio(BaseOptions(connectTimeout: const Duration(milliseconds: 200)));
+      final res = await dio.get('http://$ip');
+      final server = res.headers.value('server');
+      if (server != null) {
+        if (server.contains('MikroTik')) return 'MikroTik Router';
+        if (server.contains('QNAP')) return 'QNAP NAS';
+        if (server.contains('Synology')) return 'Synology NAS';
+        return server.split(' ')[0];
+      }
     } catch (_) {}
-
     return null;
   }
   /// Alt ağı tarayarak cihazları ve ilerlemeyi Stream olarak fırlatır
   Stream<ScanProgress> scanNetworkStream(String subnet, ScanMode mode, {bool isPremium = false}) async* {
-    if (subnet.isEmpty) return;
+    if (subnet.isEmpty) {
+      yield ScanProgress(progress: 1.0, isDone: true);
+      return;
+    }
 
     int foundCount = 0;
-    await for (final host in HostScannerService.instance.getAllPingableDevices(
-      subnet,
-      progressCallback: (double p) {},
-    )) {
-      foundCount++;
-      final ip = host.address;
-      final progressBase = (foundCount / 254) * 0.5;
+    try {
+      await for (final host in HostScannerService.instance.getAllPingableDevices(
+        subnet,
+        progressCallback: (double p) {},
+      )) {
+        foundCount++;
+        final ip = host.address;
+        // İlerlemeyi daha gerçekçi bir oranda tut (Cihaz keşfi %50, Port taraması %50 yer tutsun)
+        final progressBase = (foundCount / 254) * 0.5;
 
-      // 1. MAC Adresi Tespiti (çok katmanlı strateji)
-      final mac = await _resolveMAC(ip, host);
+        // 1. MAC Adresi Tespiti
+        final mac = await _resolveMAC(ip, host);
 
-      // 2. Vendor Tespiti
-      String vendorName = 'Bilinmeyen Üretici';
-      try {
-        final vendorData = await host.vendor;
-        if (vendorData != null && vendorData.vendorName != null) {
-          vendorName = vendorData.vendorName!;
-        }
-      } catch (_) {}
-      if (vendorName == 'Bilinmeyen Üretici' && mac != '00:00:00:00:00:00') {
-        vendorName = await _macService.getVendor(mac);
-      }
-
-      // 3. Hostname Tespiti (çok katmanlı strateji)
-      final hostname = await _resolveHostname(ip, host);
-
-      // Ana modeli oluştur
-      var device = DeviceModel(
-        ipAddress: ip,
-        macAddress: mac,
-        vendorName: vendorName,
-        deviceName: hostname ?? ip,
-        isHost: false,
-        isScanningPorts: mode != ScanMode.wifi,
-      );
-      
-      yield ScanProgress(progress: progressBase, device: device, activeIp: ip);
-
-      // 4. Port Taraması (Wifi modu değilse)
-      if (mode != ScanMode.wifi) {
-        List<int> portsToScan = [];
-        if (mode == ScanMode.fast) {
-          portsToScan = PortRiskDatabase.ports.keys.toList();
-        } else {
-          final maxPort = isPremium ? 65535 : 1024;
-          portsToScan = List.generate(maxPort, (index) => index + 1);
+        // 2. Vendor Tespiti
+        String vendorName = 'Bilinmeyen Üretici';
+        try {
+          final vendorData = await host.vendor;
+          if (vendorData != null && vendorData.vendorName != null) {
+            vendorName = vendorData.vendorName!;
+          }
+        } catch (_) {}
+        if (vendorName == 'Bilinmeyen Üretici' && mac != '00:00:00:00:00:00') {
+          vendorName = await _macService.getVendor(mac);
         }
 
-        final openPorts = <int>[];
-        int scannedPorts = 0;
+        // 3. Hostname Tespiti
+        final hostname = await _resolveHostname(ip, host);
+
+        var device = DeviceModel(
+          ipAddress: ip,
+          macAddress: mac,
+          vendorName: vendorName,
+          deviceName: hostname ?? ip,
+          isHost: false,
+          isScanningPorts: mode != ScanMode.wifi,
+        );
         
-        for (final port in portsToScan) {
-          scannedPorts++;
-          if (scannedPorts % 5 == 0) {
-            yield ScanProgress(
-              progress: progressBase + (scannedPorts / portsToScan.length) * 0.1,
-              activeIp: ip,
-              activePort: port.toString(),
-            );
+        yield ScanProgress(progress: progressBase, device: device, activeIp: ip);
+
+        // 4. Port Taraması
+        if (mode != ScanMode.wifi) {
+          List<int> portsToScan = [];
+          if (mode == ScanMode.fast) {
+            portsToScan = PortRiskDatabase.ports.keys.toList();
+          } else {
+            // Kullanıcı talebi: 1024'ten yukarı çıkarıldı. 
+            // Derin tarama varsayılan 2048, Premium ise tam kapsam (65k)
+            final maxPort = isPremium ? 65535 : 2048;
+            portsToScan = List.generate(maxPort, (index) => index + 1);
           }
 
-          try {
-            final socket = await Socket.connect(ip, port, timeout: const Duration(milliseconds: 200));
-            openPorts.add(port);
-            socket.destroy();
-          } catch (_) {}
-        }
+          final openPorts = <int>[];
+          int scannedPorts = 0;
+          
+          for (final port in portsToScan) {
+            scannedPorts++;
+            // UI kasmaması için her 10 portta bir update gönder
+            if (scannedPorts % 10 == 0) {
+              yield ScanProgress(
+                progress: progressBase + (scannedPorts / portsToScan.length) * 0.4, // %40 port tarama ağırlığı
+                activeIp: ip,
+                activePort: port.toString(),
+              );
+            }
 
-        yield ScanProgress(
-          progress: progressBase + 0.1,
-          device: device.copyWith(
-            openPorts: openPorts.toSet().toList(),
-            isScanningPorts: false,
-          ),
-        );
-      } else {
-        yield ScanProgress(
-          progress: progressBase + 0.1,
-          device: device.copyWith(isScanningPorts: false),
-        );
+            try {
+              final socket = await Socket.connect(ip, port, timeout: const Duration(milliseconds: 150));
+              openPorts.add(port);
+              socket.destroy();
+            } catch (_) {}
+          }
+
+          yield ScanProgress(
+            progress: progressBase + 0.45,
+            device: device.copyWith(
+              openPorts: openPorts.toSet().toList(),
+              isScanningPorts: false,
+            ),
+          );
+        } else {
+          yield ScanProgress(
+            progress: progressBase + 0.45,
+            device: device.copyWith(isScanningPorts: false),
+          );
+        }
       }
+    } catch (e) {
+      // Hata durumunda da akışı bitir
+    } finally {
+      yield ScanProgress(progress: 1.0, isDone: true);
     }
-    yield ScanProgress(progress: 1.0, isDone: true);
   }
 
   /// Tüm ağdaki cihazların tam taranması (Future bazlı toplu sonuç)

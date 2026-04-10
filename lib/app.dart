@@ -35,9 +35,38 @@ import 'core/services/hive_service.dart';
 
 /// Go Router konfigürasyonu
 final routerProvider = Provider<GoRouter>((ref) {
-  final hasSeenOnboarding = HiveService.hasSeenOnboarding();
   return GoRouter(
-    initialLocation: hasSeenOnboarding ? '/' : '/onboarding',
+    initialLocation: '/',
+    redirect: (context, state) {
+      final authState = ref.watch(authStateProvider);
+      final hasSeenOnboarding = HiveService.hasSeenOnboarding();
+      
+      final bool loggingIn = state.matchedLocation == '/login' || state.matchedLocation == '/register';
+      final bool inSplash = state.matchedLocation == '/';
+      final bool inOnboarding = state.matchedLocation == '/onboarding';
+
+      // Yüklenme durumunda yönlendirme yapma
+      if (authState is AsyncLoading) return null;
+
+      final bool loggedIn = authState.value != null;
+
+      // 1. Giriş yapılmadıysa ve login/register/splash dışında bir yerdeyse login'e at
+      if (!loggedIn && !loggingIn && !inSplash) {
+        return '/login';
+      }
+
+      // 2. Giriş yapıldıysa ve onboarding görülmediyse (/onboarding dışında bir yerdeyse) onboarding'e at
+      if (loggedIn && !hasSeenOnboarding && !inOnboarding) {
+        return '/onboarding';
+      }
+
+      // 3. Giriş yapıldıysa ve hata yoksa, login/register/splash'ta kalmaya devam ederse home'a at
+      if (loggedIn && (loggingIn || inSplash)) {
+        return '/home';
+      }
+
+      return null;
+    },
     routes: [
       GoRoute(
         path: '/onboarding',

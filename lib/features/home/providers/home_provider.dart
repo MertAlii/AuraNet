@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:network_info_plus/network_info_plus.dart';
+import '../../../core/services/hive_service.dart';
 
 /// Ana ekran state
 class HomeState {
@@ -13,6 +14,7 @@ class HomeState {
   final bool isScanning;
   final String? networkName;
   final String? routerBrand;
+  final String? aiRecommendation;
 
   const HomeState({
     this.securityScore = 0,
@@ -24,6 +26,7 @@ class HomeState {
     this.isScanning = false,
     this.networkName,
     this.routerBrand,
+    this.aiRecommendation,
   });
 
   HomeState copyWith({
@@ -36,6 +39,7 @@ class HomeState {
     bool? isScanning,
     String? networkName,
     String? routerBrand,
+    String? aiRecommendation,
   }) {
     return HomeState(
       securityScore: securityScore ?? this.securityScore,
@@ -47,6 +51,7 @@ class HomeState {
       isScanning: isScanning ?? this.isScanning,
       networkName: networkName ?? this.networkName,
       routerBrand: routerBrand ?? this.routerBrand,
+      aiRecommendation: aiRecommendation ?? this.aiRecommendation,
     );
   }
 }
@@ -69,6 +74,7 @@ class HomeNotifier extends StateNotifier<HomeState> {
     required int openPorts,
     required int suspicious,
     String? network,
+    String? aiRec,
   }) {
     state = state.copyWith(
       securityScore: score,
@@ -76,6 +82,7 @@ class HomeNotifier extends StateNotifier<HomeState> {
       openPortCount: openPorts,
       suspiciousCount: suspicious,
       networkName: network,
+      aiRecommendation: aiRec,
     );
   }
 
@@ -90,12 +97,14 @@ class HomeNotifier extends StateNotifier<HomeState> {
     String? ssid;
     String? ip;
     
+    // 1. Ağ bilgilerini al
     try {
       ssid = await info.getWifiName();
     } catch (_) {}
     
     try {
-      for (var iface in await NetworkInterface.list()) {
+      final interfaces = await NetworkInterface.list();
+      for (var iface in interfaces) {
         for (var addr in iface.addresses) {
           if (addr.type == InternetAddressType.IPv4 && !addr.isLoopback) {
             if (addr.address.startsWith('192.168.') || addr.address.startsWith('10.') || addr.address.startsWith('172.')) {
@@ -108,10 +117,24 @@ class HomeNotifier extends StateNotifier<HomeState> {
       }
     } catch (_) {}
     
-    state = state.copyWith(
-      networkName: ssid ?? (ip != null ? 'Bilinmeyen Ağ ($ip)' : 'Ağ Bağlantısı Yok'),
-      routerBrand: ip != null ? 'Bağlı' : 'Bağlı Değil',
-    );
+    // 2. Hive'dan en son başarılı tarama sonucunu yükle
+    final history = HiveService.getScanHistory();
+    if (history.isNotEmpty) {
+      final lastScan = history.first; // En yeni en başta (getScanHistory sıralıyor)
+      state = state.copyWith(
+        securityScore: lastScan['securityScore'] ?? 0,
+        deviceCount: lastScan['deviceCount'] ?? 0,
+        openPortCount: lastScan['openPortCount'] ?? 0,
+        suspiciousCount: lastScan['suspiciousCount'] ?? 0,
+        networkName: ssid ?? lastScan['networkName'],
+        routerBrand: 'Bağlı',
+      );
+    } else {
+      state = state.copyWith(
+        networkName: ssid ?? (ip != null ? 'Bilinmeyen Ağ ($ip)' : 'Ağ Bağlantısı Yok'),
+        routerBrand: ip != null ? 'Bağlı' : 'Bağlı Değil',
+      );
+    }
   }
 }
 

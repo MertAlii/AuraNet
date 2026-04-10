@@ -29,6 +29,20 @@ class BlogScreen extends StatelessWidget {
       content: 'Wi-Fi ağınızın güvenliği, dijital hayatınızın kapısıdır. İlk adım olarak WPA3 şifreleme protokolünü kullanmaya özen gösterin. Ayrıca, modem arayüz şifrenizi varsayılan (admin) bırakmamak, WPS özelliğini kapatmak ve SSID adınızda kişisel bilgi vermemek ağınızı çok daha güvenli hale getirecektir.',
     ),
     BlogArticle(
+      title: 'Evil Twin Saldırısı Nedir?',
+      category: 'Saldırı Türleri',
+      icon: Icons.copy_rounded,
+      excerpt: 'Sahte Wi-Fi ağları ile verileriniz nasıl çalınır?',
+      content: 'Evil Twin (Kötü İkiz) saldırısı, bir saldırganın yasal bir Wi-Fi erişim noktasının (örneğin bir kafenin interneti) tıpatıp aynısını kurmasıdır. Kullanıcılar bilmeden bu sahte ağa bağlandığında, saldırgan tüm internet trafiğini izleyebilir ve şifreleri ele geçirebilir. Halka açık ağlarda VPN kullanmak bu riski azaltır.',
+    ),
+    BlogArticle(
+      title: 'WPS Özelliğini Hemen Kapatın!',
+      category: 'Kritik Uyarı',
+      icon: Icons.warning_amber_rounded,
+      excerpt: 'Neden modeminizdeki WPS tuşu büyük bir güvenlik açığıdır?',
+      content: 'WPS (Wi-Fi Protected Setup), cihazları ağa kolayca bağlamak için geliştirilmiş olsa da, 8 haneli PIN kodu kaba kuvvet (brute-force) saldırılarına karşı çok savunmasızdır. Saldırganlar özel yazılımlar ile bu PINi birkaç saat içinde bulabilirler. Güvenliğiniz için modem arayüzünden WPS özelliğini tamamen devre dışı bırakın.',
+    ),
+    BlogArticle(
       title: 'Zayıf Şifrelerin Gizli Tehlikeleri',
       category: 'Analiz',
       icon: Icons.password_rounded,
@@ -36,11 +50,11 @@ class BlogScreen extends StatelessWidget {
       content: 'Brute-force (Kaba kuvvet) saldırıları, saniyede binlerce kombinasyon deneyerek şifrenizi kırmaya çalışır. Karmaşık olmayan şifreler, bu yazılımlar tarafından saniyeler içinde çözülebilir. Şifrenizde en az bir büyük harf, bir rakam ve bir özel karakter bulundurmak, saldırganın işini imkansız hale getirebilir.',
     ),
     BlogArticle(
-      title: 'AuraNet ile Tam Koruma',
-      category: 'Rehber',
-      icon: Icons.info_outline_rounded,
-      excerpt: 'Uygulamadaki araçları en verimli nasıl kullanırsınız?',
-      content: 'AuraNet sadece bir tarayıcı değildir. Hız testi ile performansınızı ölçerken, DNS sızıntı testi ile gizliliğinizi denetleyebilirsiniz. Port tarama özelliği sayesinde, cihazlarınızın internete açık kapı bırakıp bırakmadığını düzenli olarak kontrol etmenizi öneririz.',
+      title: 'WPA3: Yeni Nesil Şifreleme',
+      category: 'Teknoloji',
+      icon: Icons.verified_user_rounded,
+      excerpt: 'WPA2\'den WPA3\'e geçmek neden önemli?',
+      content: 'WPA3, WPA2\'deki bilinen birçok zayıflığı kapatır. Özellikle "Forward Secrecy" özelliği sayesinde, ağ şifreniz ele geçirilse bile geçmişteki trafik verileri okunamaz. Eğer modeminiz ve cihazlarınız destekliyorsa, her zaman WPA3-SAE modunu tercih edin.',
     ),
   ];
 

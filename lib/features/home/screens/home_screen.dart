@@ -531,11 +531,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       width: double.infinity,
       height: 54,
       child: ElevatedButton(
-        onPressed: state.isScanning ? null : () => _showScanOptions(context),
+        onPressed: () {
+          if (state.isScanning) {
+            // Devam eden taramaya git
+            context.push('/scan', extra: 'fast'); // Veya mevcut modu sakla
+          } else {
+            _showScanOptions(context);
+          }
+        },
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primaryBlueDark,
-          foregroundColor: AppColors.primaryBlueLight,
+          backgroundColor: state.isScanning ? AppColors.primaryBlue.withOpacity(0.1) : AppColors.primaryBlueDark,
+          foregroundColor: state.isScanning ? AppColors.primaryBlue : AppColors.primaryBlueLight,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          side: state.isScanning ? const BorderSide(color: AppColors.primaryBlue) : null,
           elevation: 0,
         ),
         child: state.isScanning
@@ -544,10 +552,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 children: [
                   SizedBox(
                     width: 20, height: 20,
-                    child: CircularProgressIndicator(color: AppColors.primaryBlueLight, strokeWidth: 2.5),
+                    child: CircularProgressIndicator(color: AppColors.primaryBlue, strokeWidth: 2.5),
                   ),
                   SizedBox(width: 12),
-                  Text('Taranıyor...', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  Text('Tarama Devam Ediyor...', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 ],
               )
             : const Row(

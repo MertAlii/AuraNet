@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:network_tools_flutter/network_tools_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'core/services/hive_service.dart';
+import 'core/services/notification_service.dart';
 import 'app.dart';
 
 void main() async {
@@ -11,6 +12,9 @@ void main() async {
 
   // Firebase başlat
   await Firebase.initializeApp();
+
+  // Bildirimleri başlat
+  await NotificationService.init();
 
   // Hive başlat
   await HiveService.init();

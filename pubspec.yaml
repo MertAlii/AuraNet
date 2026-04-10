@@ -63,6 +63,8 @@ dependencies:
   intl: ^0.20.2
   connectivity_plus: ^6.1.1
   wakelock_plus: ^1.2.8
+  home_widget: ^0.6.0
+  sqlite3_flutter_libs: ^0.5.25
 
 dev_dependencies:
   flutter_test:

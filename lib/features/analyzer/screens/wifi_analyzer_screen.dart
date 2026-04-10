@@ -479,11 +479,13 @@ class _WiFiAnalyzerScreenState extends ConsumerState<WiFiAnalyzerScreen> with Ti
   }
 
   Widget _buildRatingTab(WiFiAnalyzerState state) {
-    final ratings = ChannelRatingUtils.rateChannels(state.networks);
+    final ratings = ChannelRatingUtils.rateChannels(state.networks, _selectedBand);
     final bestChannels = ratings.take(3).toList();
 
     return Column(
       children: [
+        const SizedBox(height: 16),
+        _buildBandFilter(),
         // En iyi kanal başlığı
         Container(
           margin: const EdgeInsets.all(16),
@@ -491,19 +493,26 @@ class _WiFiAnalyzerScreenState extends ConsumerState<WiFiAnalyzerScreen> with Ti
           width: double.infinity,
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [AppColors.primaryBlue.withValues(alpha: 0.2), AppColors.backgroundCard],
+              colors: [
+                _selectedBand == '2.4 GHz' ? AppColors.primaryBlue.withValues(alpha: 0.2) : Colors.purple.withValues(alpha: 0.2), 
+                AppColors.backgroundCard
+              ],
               begin: Alignment.topLeft, end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.3)),
+            border: Border.all(color: (_selectedBand == '2.4 GHz' ? AppColors.primaryBlue : Colors.purple).withValues(alpha: 0.3)),
           ),
           child: Column(
             children: [
-              const Text('Tavsiye Edilen En İyi Kanal', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+              Text('$_selectedBand - Tavsiye Edilen En İyi Kanal', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
               const SizedBox(height: 12),
               Text(
                 bestChannels.isEmpty ? '-' : '${bestChannels.first.channel}',
-                style: const TextStyle(color: AppColors.primaryBlueLight, fontSize: 56, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: _selectedBand == '2.4 GHz' ? AppColors.primaryBlueLight : Colors.purple[200], 
+                  fontSize: 56, 
+                  fontWeight: FontWeight.bold
+                ),
               ),
               const SizedBox(height: 12),
               Row(
@@ -540,11 +549,11 @@ class _WiFiAnalyzerScreenState extends ConsumerState<WiFiAnalyzerScreen> with Ti
                       Container(
                         width: 44, height: 44,
                         decoration: BoxDecoration(
-                          color: r.band == '5 GHz' ? Colors.purple.withOpacity(0.1) : AppColors.backgroundDeep, 
+                          color: r.band == '5 GHz' || r.band == '6 GHz' ? Colors.purple.withOpacity(0.1) : AppColors.backgroundDeep, 
                           shape: BoxShape.circle
                         ),
                         alignment: Alignment.center,
-                        child: Text('${r.channel}', style: TextStyle(color: r.band == '5 GHz' ? Colors.purple[200] : AppColors.textPrimary, fontWeight: FontWeight.bold)),
+                        child: Text('${r.channel}', style: TextStyle(color: r.band == '5 GHz' || r.band == '6 GHz' ? Colors.purple[200] : AppColors.textPrimary, fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -560,7 +569,7 @@ class _WiFiAnalyzerScreenState extends ConsumerState<WiFiAnalyzerScreen> with Ti
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              r.overlappingCount > 0 ? '${r.overlappingCount} Çakışan Ağ (Tıkla)' : 'Temiz Kanal', 
+                              r.overlappingCount > 0 ? '${r.overlappingCount} Cihaz Bulundu (İncele)' : 'Temiz Kanal', 
                               style: TextStyle(color: r.overlappingCount > 0 ? AppColors.primaryBlueLight : AppColors.safe, fontSize: 12)
                             ),
                           ],

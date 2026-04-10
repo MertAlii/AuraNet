@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/services/hive_service.dart';
 import '../../auth/providers/auth_provider.dart';
 
 /// Profil state
@@ -10,6 +11,7 @@ class ProfileState {
   final int totalScans;
   final List<String> badges;
   final bool isLoading;
+  final bool isDeveloperModeEnabled;
 
   const ProfileState({
     this.displayName = '',
@@ -19,6 +21,7 @@ class ProfileState {
     this.totalScans = 0,
     this.badges = const [],
     this.isLoading = false,
+    this.isDeveloperModeEnabled = false,
   });
 
   ProfileState copyWith({
@@ -29,6 +32,7 @@ class ProfileState {
     int? totalScans,
     List<String>? badges,
     bool? isLoading,
+    bool? isDeveloperModeEnabled,
   }) {
     return ProfileState(
       displayName: displayName ?? this.displayName,
@@ -38,6 +42,7 @@ class ProfileState {
       totalScans: totalScans ?? this.totalScans,
       badges: badges ?? this.badges,
       isLoading: isLoading ?? this.isLoading,
+      isDeveloperModeEnabled: isDeveloperModeEnabled ?? this.isDeveloperModeEnabled,
     );
   }
 }
@@ -48,6 +53,16 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
 
   ProfileNotifier(this._ref) : super(const ProfileState()) {
     loadProfile();
+  }
+
+  /// Geliştirici modunu aktif et
+  void enableDeveloperMode() {
+    state = state.copyWith(isDeveloperModeEnabled: true);
+  }
+
+  /// Groq API anahtarını güncelle ve Hive'a kaydet
+  Future<void> updateGroqApiKey(String key) async {
+    await HiveService.saveSetting('groq_api_key', key);
   }
 
   /// Profil bilgilerini yükle

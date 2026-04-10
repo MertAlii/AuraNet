@@ -11,6 +11,8 @@ import '../../../core/services/firestore_service.dart';
 import '../../../core/services/notification_service.dart';
 
 import 'package:wakelock_plus/wakelock_plus.dart';
+import '../../../core/services/widget_service.dart';
+import '../../../core/services/groq_service.dart';
 
 // Servis provider'ları
 final macVendorServiceProvider = Provider((ref) => MacVendorService());
@@ -26,6 +28,7 @@ class ScanState {
   final String? error;
   final String activeScanningIp;
   final String activeScanningPort;
+  final String? aiRecommendation;
 
   const ScanState({
     this.devices = const [],
@@ -36,6 +39,7 @@ class ScanState {
     this.error,
     this.activeScanningIp = '',
     this.activeScanningPort = '',
+    this.aiRecommendation,
   });
 
   ScanState copyWith({
@@ -47,6 +51,7 @@ class ScanState {
     String? error,
     String? activeScanningIp,
     String? activeScanningPort,
+    String? aiRecommendation,
   }) {
     return ScanState(
       devices: devices ?? this.devices,
@@ -57,6 +62,7 @@ class ScanState {
       error: error,
       activeScanningIp: activeScanningIp ?? this.activeScanningIp,
       activeScanningPort: activeScanningPort ?? this.activeScanningPort,
+      aiRecommendation: aiRecommendation ?? this.aiRecommendation,
     );
   }
 }
@@ -228,6 +234,35 @@ class ScanNotifier extends StateNotifier<ScanState> {
       isOpenWifi: false,
     ).score;
 
+    // Yapay Zeka Analizi (Aura AI)
+    String? aiRec;
+    try {
+      final auth = _ref.read(authProvider);
+      final systemPrompt = GroqService.buildSystemPrompt(
+        userName: auth.user?.displayName ?? 'Kullanıcı',
+        securityScore: customScore,
+        deviceCount: state.devices.length,
+        openPortCount: openPortsCount,
+        suspiciousCount: suspiciousCount,
+        networkName: state.subnet.isNotEmpty ? '${state.subnet}.X' : 'Bilinmeyen Ağ',
+        devices: state.devices.map((d) => {
+          'ip': d.ipAddress,
+          'name': d.deviceName,
+          'vendor': d.vendorName,
+          'ports': d.openPorts,
+        }).toList(),
+      );
+      
+      aiRec = await GroqService.ask(
+        userMessage: 'Ağımı analiz et ve bana yapılması gerekenler listesi çıkar.',
+        systemPrompt: systemPrompt,
+      );
+    } catch (e) {
+      aiRec = 'AI Analizi sırasında bir hata oluştu: $e';
+    }
+
+    state = state.copyWith(aiRecommendation: aiRec);
+
     // HomeProvider'ı güncelle
     _ref.read(homeProvider.notifier).updateScanResults(
       score: customScore,
@@ -235,6 +270,7 @@ class ScanNotifier extends StateNotifier<ScanState> {
       openPorts: openPortsCount,
       suspicious: suspiciousCount,
       network: state.subnet.isNotEmpty ? '${state.subnet}.X' : 'Bilinmeyen Ağ',
+      aiRec: aiRec,
     );
 
     // Yerel geçmişe kaydet
@@ -254,6 +290,17 @@ class ScanNotifier extends StateNotifier<ScanState> {
         }).toList(),
       });
     }
+
+    // Widget Güncelleme
+    try {
+      final localIp = await _scannerService.getLocalIpAddress() ?? '0.0.0.0';
+      await WidgetService.updateWidgetData(
+        ssid: state.subnet.isNotEmpty ? '${state.subnet}.X' : 'Bilinmeyen Ağ',
+        ip: localIp,
+        signal: 100, // Basitleştirilmiş, ilerde gerçek değer eklenebilir
+        securityScore: customScore,
+      );
+    } catch (_) {}
   }
 
   /// Yeni cihaz tespiti ve bildirimi

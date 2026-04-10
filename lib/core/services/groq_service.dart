@@ -1,12 +1,22 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'hive_service.dart';
 
 class GroqService {
-  static const String _apiKey = String.fromEnvironment('GROQ_API_KEY');
+  /// Hive'da kayıtlı anahtarı yoksa dart-define'dan gelen anahtarı kullanır
+  static String get _apiKey {
+    final hiveKey = HiveService.getSetting<String>('groq_api_key');
+    if (hiveKey != null && hiveKey.isNotEmpty) {
+      return hiveKey;
+    }
+    // Önemli:fromEnvironment içine anahtarın adı (Değişken ismi) yazılır, kendisi değil.
+    return const String.fromEnvironment('GROQ_API_KEY');
+  }
+
   static const String _baseUrl = 'https://api.groq.com/openai/v1/chat/completions';
   static const String _model = 'llama-3.3-70b-versatile';
 
-  static final Dio _dio = Dio(BaseOptions(
+  static Dio get _dio => Dio(BaseOptions(
     baseUrl: _baseUrl,
     headers: {
       'Authorization': 'Bearer $_apiKey',
@@ -84,8 +94,14 @@ class GroqService {
     }
 
     buffer.writeln('');
+    buffer.writeln('## TAVSİYE FORMATI');
+    buffer.writeln('Cevabını mutlaka şu bölümlerden oluştur:');
+    buffer.writeln('1. **Genel Durum**: Ağın genel güvenliğini 1-2 cümleyle özetle.');
+    buffer.writeln('2. **Yapılması Gerekenler (To-Do List)**: Kullanıcının alması gereken aksiyonları madde madde yaz (Örn: "Port 21\'i kapatın", "Parolanızı güçlendirin").');
+    buffer.writeln('3. **Kritik Uyarılar**: Eğer çok ciddi bir açık varsa (Telnet açık, şüpheli cihaz vb.) bunu vurgula.');
+    buffer.writeln('');
     buffer.writeln('Bu bilgilere dayanarak kullanıcının sorularını cevapla ve güvenlik tavsiyeleri ver.');
-    buffer.writeln('Eğer skor düşükse uyar, yüksekse tebrik et. Her zaman yaratıcı ve eğitici ol.');
+    buffer.writeln('Markdown formatını kullan ama çok uzun tutma.');
 
     return buffer.toString();
   }
