@@ -10,6 +10,8 @@ import '../../../core/services/hive_service.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/services/notification_service.dart';
 
+import 'package:wakelock_plus/wakelock_plus.dart';
+
 // Servis provider'ları
 final macVendorServiceProvider = Provider((ref) => MacVendorService());
 final networkScannerServiceProvider = Provider((ref) => NetworkScannerService(ref.read(macVendorServiceProvider)));
@@ -22,6 +24,8 @@ class ScanState {
   final ScanMode currentMode;
   final double progress;
   final String? error;
+  final String activeScanningIp;
+  final String activeScanningPort;
 
   const ScanState({
     this.devices = const [],
@@ -30,6 +34,8 @@ class ScanState {
     this.currentMode = ScanMode.fast,
     this.progress = 0.0,
     this.error,
+    this.activeScanningIp = '',
+    this.activeScanningPort = '',
   });
 
   ScanState copyWith({
@@ -39,6 +45,8 @@ class ScanState {
     ScanMode? currentMode,
     double? progress,
     String? error,
+    String? activeScanningIp,
+    String? activeScanningPort,
   }) {
     return ScanState(
       devices: devices ?? this.devices,
@@ -47,6 +55,8 @@ class ScanState {
       currentMode: currentMode ?? this.currentMode,
       progress: progress ?? this.progress,
       error: error,
+      activeScanningIp: activeScanningIp ?? this.activeScanningIp,
+      activeScanningPort: activeScanningPort ?? this.activeScanningPort,
     );
   }
 }
@@ -84,6 +94,11 @@ class ScanNotifier extends StateNotifier<ScanState> {
 
     // Premium durumunu al
     final isPremium = _ref.read(authProvider).isPremium;
+
+    // Wakelock işlemleri
+    if (HiveService.isWakelockEnabled()) {
+      WakelockPlus.enable();
+    }
 
     try {
       final stream = _scannerService.scanNetworkStream(subnet, mode, isPremium: isPremium);
@@ -145,7 +160,11 @@ class ScanNotifier extends StateNotifier<ScanState> {
             }
           } else {
             // Sadece progress güncelleme
-            state = state.copyWith(progress: progressInfo.progress);
+            state = state.copyWith(
+              progress: progressInfo.progress,
+              activeScanningIp: progressInfo.activeIp ?? state.activeScanningIp,
+              activeScanningPort: progressInfo.activePort ?? state.activeScanningPort,
+            );
             NotificationService.showProgressNotification(
               id: 999, 
               title: 'AuraNet Ağ Taraması', 
@@ -162,6 +181,7 @@ class ScanNotifier extends StateNotifier<ScanState> {
           state = state.copyWith(isScanning: false, error: 'Tarama hatası: $e', progress: 0.0);
           _ref.read(homeProvider.notifier).setScanningState(false);
           NotificationService.cancelNotification(999);
+          if (HiveService.isWakelockEnabled()) WakelockPlus.disable();
         },
       );
     } catch (e) {
@@ -179,6 +199,7 @@ class ScanNotifier extends StateNotifier<ScanState> {
     state = state.copyWith(isScanning: false, progress: 0.0);
     _ref.read(homeProvider.notifier).setScanningState(false);
     NotificationService.cancelNotification(999);
+    if (HiveService.isWakelockEnabled()) WakelockPlus.disable();
   }
 
   /// Tarama bittiğinde istatistikleri ve geçmişi kaydet
@@ -187,6 +208,7 @@ class ScanNotifier extends StateNotifier<ScanState> {
     
     state = state.copyWith(isScanning: false, progress: 1.0);
     NotificationService.cancelNotification(999); // Bildirimi kapat
+    if (HiveService.isWakelockEnabled()) WakelockPlus.disable();
 
     // Analiz için ScoreCalculator'ı kullan
     final openPortsCount = state.devices.fold<int>(0, (sum, dev) => sum + dev.openPorts.length);

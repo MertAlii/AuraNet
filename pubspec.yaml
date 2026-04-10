@@ -61,6 +61,8 @@ dependencies:
   network_tools_flutter: ^3.0.3
   wifi_scan: ^0.4.1+2
   intl: ^0.20.2
+  connectivity_plus: ^6.1.1
+  wakelock_plus: ^1.2.8
 
 dev_dependencies:
   flutter_test:

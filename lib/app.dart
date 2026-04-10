@@ -15,8 +15,12 @@ import 'features/scan/screens/port_dictionary_screen.dart';
 import 'features/speedtest/screens/speedtest_screen.dart';
 import 'features/analyzer/screens/wifi_analyzer_screen.dart';
 import 'features/security/screens/advanced_security_screen.dart';
+import 'features/auth/providers/auth_provider.dart';
 import 'features/premium/screens/premium_screen.dart';
 import 'features/history/screens/history_screen.dart';
+import 'features/scan/screens/specific_port_scanner_screen.dart';
+import 'features/security/screens/aura_ai_screen.dart';
+import 'shared/widgets/connectivity_wall.dart';
 import 'features/scan/models/device_model.dart';
 import 'features/scan/screens/devices_list_screen.dart';
 import 'features/security/screens/dns_test_screen.dart';
@@ -26,11 +30,19 @@ import 'features/blog/screens/blog_screen.dart';
 import 'features/analyzer/screens/qr_share_screen.dart';
 import 'core/services/network_scanner_service.dart';
 
+import 'features/auth/screens/onboarding_screen.dart';
+import 'core/services/hive_service.dart';
+
 /// Go Router konfigürasyonu
 final routerProvider = Provider<GoRouter>((ref) {
+  final hasSeenOnboarding = HiveService.hasSeenOnboarding();
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: hasSeenOnboarding ? '/' : '/onboarding',
     routes: [
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingScreen(),
+      ),
       GoRoute(
         path: '/',
         builder: (context, state) => const SplashScreen(),
@@ -130,6 +142,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           final ssid = state.extra as String;
           return QrShareScreen(ssid: ssid);
         },
+      ),
+      GoRoute(
+        path: '/specificPort',
+        builder: (context, state) => const SpecificPortScannerScreen(),
+      ),
+      GoRoute(
+        path: '/auraAi',
+        builder: (context, state) => const AuraAiScreen(),
       ),
     ],
   );
@@ -262,6 +282,9 @@ class AuraNetApp extends ConsumerWidget {
       title: 'AuraNet',
       debugShowCheckedModeBanner: false,
       routerConfig: router,
+      builder: (context, child) {
+        return ConnectivityWall(child: child!);
+      },
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: AppColors.backgroundDeep,

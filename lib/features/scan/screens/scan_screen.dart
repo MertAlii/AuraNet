@@ -71,11 +71,26 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       body: Column(
         children: [
           if (scanState.isScanning)
-             LinearProgressIndicator(
-               value: scanState.progress > 0 ? scanState.progress : null, 
-               color: AppColors.primaryBlue, 
-               backgroundColor: AppColors.primaryBlue.withOpacity(0.1)
-             ),
+           Column(
+             children: [
+               LinearProgressIndicator(
+                 value: scanState.progress > 0 ? scanState.progress : null, 
+                 color: AppColors.primaryBlue, 
+                 backgroundColor: AppColors.primaryBlue.withOpacity(0.1)
+               ),
+               if (scanState.activeScanningIp.isNotEmpty)
+                 Container(
+                   width: double.infinity,
+                   padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                   color: AppColors.primaryBlue.withOpacity(0.1),
+                   child: Text(
+                     'Taranıyor: ${scanState.activeScanningIp} ${scanState.activeScanningPort.isNotEmpty ? ':: Port ${scanState.activeScanningPort}' : ''}',
+                     style: const TextStyle(color: AppColors.primaryBlueLight, fontSize: 12, fontFamily: 'JetBrains Mono'),
+                     textAlign: TextAlign.center,
+                   ),
+                 ),
+             ],
+           ),
           // Üst bilgi kartı
           _buildInfoCard(scanState),
 

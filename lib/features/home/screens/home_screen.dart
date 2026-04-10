@@ -369,26 +369,54 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildAdvancedTools(HomeState state) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: _quickAccessCard(
-              icon: Icons.security_rounded,
-              title: 'Gelişmiş Güvenlik',
-              subtitle: 'DNS Sızıntı & ARP Koruması',
-              color: AppColors.warning,
-              onTap: () => context.push('/security'),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: _quickAccessCard(
+                  icon: Icons.security_rounded,
+                  title: 'Gelişmiş Güvenlik',
+                  subtitle: 'DNS Sızıntı & ARP Koruması',
+                  color: AppColors.warning,
+                  onTap: () => context.push('/security'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _quickAccessCard(
+                  icon: Icons.auto_awesome_rounded,
+                  title: 'Aura AI',
+                  subtitle: 'Yapay Zeka Asistanı',
+                  color: AppColors.primaryBlue,
+                  onTap: () => context.push('/auraAi'),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _quickAccessCard(
-              icon: Icons.school_rounded,
-              title: 'Akademi (Blog)',
-              subtitle: 'Ağ Güvenliğini Öğrenin',
-              color: AppColors.primaryBlueLight,
-              onTap: () => context.push('/blog'),
-            ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _quickAccessCard(
+                  icon: Icons.manage_search_rounded,
+                  title: 'Port Analizi',
+                  subtitle: 'Spesifik Port Taraması',
+                  color: AppColors.danger,
+                  onTap: () => context.push('/specificPort'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _quickAccessCard(
+                  icon: Icons.school_rounded,
+                  title: 'Akademi (Blog)',
+                  subtitle: 'Ağ Güvenliğini Öğrenin',
+                  color: AppColors.primaryBlueLight,
+                  onTap: () => context.push('/blog'),
+                ),
+              ),
+            ],
           ),
         ],
       ),

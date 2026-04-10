@@ -109,6 +109,32 @@ class HiveService {
     await saveSetting('gateway_mac', mac);
   }
 
+  // ─── Uygulama Ayarları ─────────────────────────────────
+  
+  static bool hasSeenOnboarding() {
+    return getSetting<bool>('has_seen_onboarding', defaultValue: false) ?? false;
+  }
+
+  static Future<void> setSeenOnboarding(bool value) async {
+    await saveSetting('has_seen_onboarding', value);
+  }
+
+  static bool isRootMode() {
+    return getSetting<bool>('is_root_mode', defaultValue: false) ?? false;
+  }
+
+  static Future<void> setRootMode(bool value) async {
+    await saveSetting('is_root_mode', value);
+  }
+
+  static bool isWakelockEnabled() {
+    return getSetting<bool>('is_wakelock_enabled', defaultValue: true) ?? true;
+  }
+
+  static Future<void> setWakelockEnabled(bool value) async {
+    await saveSetting('is_wakelock_enabled', value);
+  }
+
   // ─── Ağ Profilleri ─────────────────────────────────
 
   /// Ağ profili kaydet
